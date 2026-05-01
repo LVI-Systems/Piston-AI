@@ -863,6 +863,10 @@ function renderResponse(output, initialCreation) {
 }
 
 async function askPiston(uInput) {
+    let pisResBubble = document.getElementById("pisResBubble");
+    if (pisResBubble) {
+        pisResBubble.id = ""
+    }
     const AIboxEl = document.getElementById("AIbox");
     try {
         AIboxEl.style.visibility = "visible";
@@ -1133,17 +1137,9 @@ function positionTimerUtils() {
                 startStopwatch();
             };
             if (stopwatchTicking) {
-                const cachedTS = parseInt(localStorage.getItem("timestampStopwatchBeforePause"));
-                const stopwatchCount = JSON.parse(localStorage.getItem("stopwatchCount"));
-                console.log(cachedTS, stopwatchCount);
-                const timeInBetween = getTimeInBetween(cachedTS, Date.now());
-                const calcMinutes = parseInt(stopwatchCount.minutes) + timeInBetween[0];
-                const calcSeconds = parseInt(stopwatchCount.seconds) + timeInBetween[1];
-                startStopwatch(calcMinutes, calcSeconds);
-                if (stopwatchPaused) {
-                    startStopwatch(parseInt(stopwatchCount.minutes), parseInt(stopwatchCount.seconds));
-                    pauseStopwatch();
-                }
+                const utilBoxItemsEl = document.getElementById("utilBoxItems");
+                utilBoxItemsEl.innerHTML = window.utilBoxPages[4];
+                pickupStopwatch();
             }
         } else if (window.utilBoxState !== "") {
             if (stopwatchTicking) {
@@ -1156,6 +1152,8 @@ function positionTimerUtils() {
                 }));
             };
             const utilBoxEl = document.getElementById("utilBox"); 
+            clearInterval(window.stopwatchValue);
+            window.stopwatchValue = null;
             utilBoxEl.style.opacity = "0";
             window.utilBoxState = "";
             utilBoxEl.addEventListener("transitionend",() => {
@@ -1217,9 +1215,6 @@ function positionTimerUtils() {
                 const utilBoxItemsEl = document.getElementById("utilBoxItems");
                 utilBoxItemsEl.innerHTML = window.utilBoxPages[2];
                 pickupTimer();
-                if (timerPaused) {
-                    pauseTimer();
-                }
             }
         } else if (window.utilBoxState !== "") { // checkpoint for easy searching: minTimerPop
             if (timerTicking) {
@@ -1230,6 +1225,7 @@ function positionTimerUtils() {
                     minutes: timerMinutesAEl.textContent,
                     seconds: timerSecondsAEl.textContent
                 }));
+                initWatchDogTimer();
             }
             clearInterval(window.timerValue);
             window.timerValue = null;
@@ -1246,6 +1242,70 @@ function positionTimerUtils() {
     }
 }
 
+function pickupStopwatch() {
+    const resetStopwatchEl = document.getElementById("resetStopwatch");
+    const pauseStopwatchEl = document.getElementById("pauseStopwatch");
+
+    const timestampBeforePausingStopwatch = localStorage.getItem("timestampBeforePausingStopwatch");
+    const stopwatchMinutesEl = document.getElementById("stopwatchMinutes");
+    const stopwatchSecondsEl = document.getElementById("stopwatchSeconds");
+    const utilBoxItemsEl = document.getElementById("utilBoxItems");
+    utilBoxItemsEl.innerHTML = window.utilBoxPages[4];
+    const pauseVal = localStorage.getItem("timestampStopwatchBeforePause");
+    const stopwatchCount = JSON.parse(localStorage.getItem("stopwatchCount"));
+
+    stopwatchMinutesEl.textContent = String(stopwatchCount.minutes).padStart(2,"0");
+    stopwatchSecondsEl.textContent = String(stopwatchCount.seconds).padStart(2,"0");
+
+    if (stopwatchPaused) {
+        const pauseVal = localStorage.getItem("stopwatchPausedVal");
+        pauseStopwatch();
+        localStorage.setItem("stopwatchPauseVal", pauseVal);
+        return;
+    }
+
+    const startTime = localStorage.getItem("stopwatchStartTime");
+
+    resetStopwatchEl.style.visibility = "visible";
+    pauseStopwatchEl.style.visibility = "visible";
+
+    pauseStopwatchEl.onclick = () => {
+        const pauseStopwatchImgEl = document.getElementById("pauseStopwatchImg");
+        if (pauseStopwatchImgEl.src.includes("src/src/pausetimer.png")) {
+            pauseStopwatch();
+        } else {
+            resumeStopwatch();
+        }
+    }
+
+    resetStopwatchEl.onclick = () => {
+        resetStopwatch();
+    }
+
+    if (stopwatchMinutesEl.textContent === "undefined") {
+        stopwatchMinutesEl.textContent = "00";
+    }
+
+    if (stopwatchSecondsEl.textContent === "undefined") {
+        stopwatchSecondsEl.textContent = "00";
+    }
+
+    const diff = 1000 - (parseInt(startTime) % 1000)
+    setTimeout(()=>{
+        window.stopwatchValue = setInterval(() => {
+            const seconds = String((parseInt(stopwatchSecondsEl.textContent) + 1)).padStart(2,"0");
+
+            if (seconds === "60") { // to the reviewers: this statement is not 59 is cuz this action runs in a split of a second, which no one can actually see 60 coming out. But instead, they see 00.
+                const minutes = String((parseInt(stopwatchMinutesEl.textContent) + 1)).padStart(2,"0");
+                stopwatchMinutesEl.textContent = minutes;
+                stopwatchSecondsEl.textContent = "00";
+            } else {
+                stopwatchSecondsEl.textContent = seconds;
+            }
+        }, 1000);
+    });
+}
+
 function pickupTimer() {
     const utilBoxItemsEl = document.getElementById("utilBoxItems");
     utilBoxItemsEl.innerHTML = window.utilBoxPages[2];
@@ -1258,6 +1318,15 @@ function pickupTimer() {
     console.log(timerCount.minutes);
     timerSecondsAEl.textContent = timerCount.seconds;
     console.log(timerCount.seconds);
+    const pauseTimerEl = document.getElementById("pauseTimer");
+    const resetTimerEl = document.getElementById("resetTimer");
+    pauseTimerEl.onclick = () => {
+        pauseTimer();
+    }
+
+    resetTimerEl.onclick = () => {
+        resetTimer();
+    }
     if (timerPaused) {
         pauseTimer();
         return;
@@ -1267,6 +1336,7 @@ function pickupTimer() {
     timerSecondsAEl.textContent = String(parseInt(timerSecondsAEl.textContent) - timeInBetween[1]).padStart(2,"0");
     const diff = 1000 - (timestampBeforePausingTimer % 1000);
     console.log(diff);
+    console.log("")      
     setTimeout(() => {
         const targetTime = localStorage.getItem("timerTarget");
         const currentTime = Date.now();
@@ -1361,7 +1431,6 @@ function startTimer(bypassCaching=false) {
             }
         }
     }, 1000);
-    initWatchDogTimer();
 }
 
 function resumeTimer() {
@@ -1372,15 +1441,14 @@ function resumeTimer() {
     timerMinutesAEl.textContent = String(minutes).padStart(2, "0");
     timerSecondsAEl.textContent = String(seconds).padStart(2,"0");
 
+    const startTime = localStorage.getItem("timerStartTime");
     localStorage.setItem("timerStartTime", String(Date.now()));
-    initWatchDogTimer();
-
-    const startTime = localStorage.getItem("timerStartTime")
-    const timerPausedVal = Number(localStorage.getItem("timerPausedVal"));
-    const targetTime = Number(localStorage.getItem("timerTarget"));
+    const timerPausedVal = parseInt(localStorage.getItem("timerPausedVal"));
+    const targetTime = parseInt(localStorage.getItem("timerTarget"));
     const newTargetTime = String(Date.now() + (targetTime - timerPausedVal));
     localStorage.setItem("timerTarget", newTargetTime);
-    const diff = 1000 - (startTime % 1000);
+    const diff = 1000 - timerPausedVal;
+    console.log(diff);
 
     setTimeout(() => {
         if (timerSecondsAEl.textContent === "00") {
@@ -1413,6 +1481,8 @@ function resumeTimer() {
 function timerTimeout() {
     clearInterval(window.timerValue);
     window.timerValue = null;
+    const utilBoxEl = document.getElementById("utilBox");
+    utilBoxEl.style.visibility = "visible";
     const utilBoxItemsEl = document.getElementById("utilBoxItems");
     utilBoxItemsEl.innerHTML = window.utilBoxPages[3];
     const timeoutResetEl = document.getElementById("timeoutReset");
@@ -1473,8 +1543,8 @@ function pauseTimer() {
         pauseTimerImgEl.src = "src/src/resumetimer.png";
         clearInterval(window.timerValue);
         timerPaused = true;
-        localStorage.setItem("timerPausedVal", String(Date.now()));
-        localStorage.removeItem("timerStartTime");
+        const startTime = parseInt(localStorage.getItem("timerStartTime"));
+        localStorage.setItem("timerPausedVal", String(Math.abs(Date.now() - startTime) % 1000));
     } else {
         pauseTimerImgEl.src = "src/src/pausetimer.png";
         resumeTimer();
@@ -1549,10 +1619,11 @@ function resumeStopwatch() {
     const stopwatchMinutesEl = document.getElementById("stopwatchMinutes");
     const stopwatchSecondsEl = document.getElementById("stopwatchSeconds");
     const pauseStopwatchImgEl = document.getElementById("pauseStopwatchImg");
-    pauseStopwatchImgEl.src = "src/src/pausetimer.png"
+    pauseStopwatchImgEl.src = "src/src/pausetimer.png";
     localStorage.setItem("stopwatchStartTime", String(Date.now()));
+    const pauseVal = 1000 - parseInt(localStorage.getItem("stopwatchPausedVal"));
 
-    window.stopwatchValue = setInterval(() => {
+    setTimeout(() => {
         const seconds = String((parseInt(stopwatchSecondsEl.textContent) + 1)).padStart(2,"0");
 
         stopwatchSecondsEl.textContent = seconds;
@@ -1561,13 +1632,24 @@ function resumeStopwatch() {
             stopwatchMinutesEl = minutes;
             stopwatchSecondsEl = "00";
         }
-    }, 1000);
+        window.stopwatchValue = setInterval(() => {
+            const seconds = String((parseInt(stopwatchSecondsEl.textContent) + 1)).padStart(2,"0");
+
+            stopwatchSecondsEl.textContent = seconds;
+            if (seconds === "59") {
+                const minutes = String((parseInt(stopwatchMinutesEl.textContent) + 1)).padStart(2,"0");
+                stopwatchMinutesEl = minutes;
+                stopwatchSecondsEl = "00";
+            }
+        }, 1000);
+    }, pauseVal);
 }
 
 function pauseStopwatch() {
     stopwatchPaused = true;
     clearInterval(window.stopwatchValue);
-    localStorage.removeItem("stopwatchStartTime");
+    const startTime = localStorage.getItem("stopwatchStartTime");
+    localStorage.setItem("stopwatchPausedVal", String(Math.abs(Date.now() - startTime) % 1000));
     const pauseStopwatchImgEl = document.getElementById("pauseStopwatchImg");
     pauseStopwatchImgEl.src = "src/src/resumetimer.png";
 }
@@ -1645,14 +1727,23 @@ function positionUtilBox() {
 }
 
 function initWatchDogTimer() {
-    window.timerWatchDog = setInterval(() => {
-        const targetTime = localStorage.getItem("timerTarget");
-        const currentTime = Date.now();
-        
-        if (currentTime > targetTime) {
+    if (timerPaused) return;
+    console.log("watchdog started");
+    if (!timerPaused && timerTicking) {
+        const destTime = parseInt(localStorage.getItem("timerTarget")) - Date.now();
+        console.log(destTime);
+        window.watchDog = setTimeout(() => {
+            timerTicking = false;
+            timerPaused = false;
             timerTimeout();
-        }
-    }, 500);
+        }, destTime);
+    }
+}
+
+function removeWatchDogTimer() {
+    if (!window.watchDog) return;
+    clearTimeout(window.watchDog);
+    window.watchDog = null;
 }
 
 async function getWeather() {
@@ -2288,4 +2379,4 @@ function updateGreeting() {
 document.fonts.ready.then(() => {
     document.body.style.visibility = "visible";
     initStorage();
-})
+});
