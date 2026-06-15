@@ -1,0 +1,9 @@
+openai
+sounddevice
+numpy
+faster-whisper
+requests
+geocoder
+ddgs
+nemo_text_processing
+gladia-normalization
